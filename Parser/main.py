@@ -1,17 +1,36 @@
 import itertools
+import math
 import re
 import sys
 import threading
 import time
 from queue import Queue
 
+from PySide2.QtWidgets import QFileDialog, QMainWindow, QApplication
 from pip._vendor.distlib.compat import raw_input
 import xlrd
 
-class Main:
-    def __init__(self):
+class Main(QMainWindow):
+    def __init__(self,parent):
+        super(Main, self).__init__()
         self._running = False
-        self.data()
+        self.file_ = None
+        self.get_file()
+
+        if self.file_:
+            self.data()
+            # self.file2('01/02/2017 09') #remove input msg for month/day/year mm
+        else:
+            quit()
+
+    def get_file(self):
+        file_name, _ = QFileDialog.getOpenFileName(self, caption="Data Parse", filter="Excel(*.xlsx)")
+        if file_name != '':
+            self.file_ = file_name
+            return file_name
+        else:
+            return False
+
 
     def data(self):
         month = raw_input("Enter Month (1-12):")
@@ -50,79 +69,99 @@ class Main:
         years = raw_input("Enter Year :")
         y = re.match('[0-9]+', years)
         if y:
-
-            t = threading.Thread(target=self.loading)
-            t.start()
-
             d = f'{m}/{day}/{years}'
-            que = Queue()
-            t1 = threading.Thread(target=lambda q, arg1: q.put(self.file2(arg1)), args=(que, d))
-            t1.start()
+            self.hour(d)
 
         else:
             print('enter a valid year')
             return self.year(self,m,day)
+    def hour(self,_):
+        hours = raw_input("Enter hours (0-24):")
+        h = re.match('[0-9]+', hours)
+        if h:
+            if int(hours) > 24:
+                print('enter 0-24 hours')
+                return self.hour(_)
+            else:
+                if int(hours) in [1,2,3,4,5,6,7,8,9]:
+                    date_filter = f'{_} 0{hours}'
+                else:
+                    date_filter = f'{_} {hours}'
 
-    def file(self,date_):
-        import pandas as pd
-        from pandas import ExcelWriter
-        from pandas import ExcelFile
+                t = threading.Thread(target=self.loading)
+                t.start()
 
-        df = pd.read_excel("file/PMO Pier 1 Jan-Dec 2017.xlsx", sheet_name=None)
-        # df = pd.read_excel("file/Book1.xlsx", sheet_name=None)
 
-        # print("Column headings:")
-        # print(DataF.columns)
-        # print(df)\
-        i = 0
-        o = 0
-        for d in df:
-            print(d)
-            sheet = pd.read_excel("file/PMO Pier 1 Jan-Dec 2017.xlsx", sheet_name=d, header=[0])
-            # sheet = pd.read_excel("file/Book1.xlsx", sheet_name=d, header=[0])
+                que = Queue()
+                t1 = threading.Thread(target=lambda q, arg1: q.put(self.file2(arg1)), args=(que, date_filter))
+                t1.start()
+        else:
+            print('enter 0-24 hours')
+            return self.hour(_)
 
-            h = []
-            for k in sheet.to_dict('dict'):
-                h.append(k)
 
-            berth_dt_key = []
-            if 'BERTH ARR DATE & TIME' in h:
-                for k in sheet.to_dict('dict')['BERTH ARR DATE & TIME']:
-                    try:
-                        berth_dt = sheet.to_dict('dict')['BERTH ARR DATE & TIME'][k].strftime("%m/%d/%Y")
-                    except:
-                        # print(k)
-                        # print(sheet.to_dict('dict')['BERTH ARR DATE & TIME'][k])
-                        # print("Please check your excel file empty column found")
-                        # exit()
-                        pass
-
-                    if berth_dt == date_:
-                        berth_dt_key.append(k)
-
-            for b in berth_dt_key:
-                in_ = sheet.to_dict('dict')['PASSENGER IN'][b]
-                out_ = sheet.to_dict('dict')['PASSENGER OUT'][b]
-
-                i += float(in_)
-                o += float(out_)
-
-        self.terminate()
-        print('')
-        print('==================================')
-        print(f'Date : {date_}')
-        print(f'Total PASSENGER IN : {i}')
-        print(f'Total PASSENGER OUT : {o}')
-        print('==================================')
-        print('')
-
+    # def file(self,date_):
+    #     import pandas as pd
+    #     from pandas import ExcelWriter
+    #     from pandas import ExcelFile
+    #     file = self.file_
+    #     df = pd.read_excel(file, sheet_name=None)
+    #     # df = pd.read_excel("file/PMO Pier 1 Jan-Dec 2017.xlsx", sheet_name=None)
+    #     # df = pd.read_excel("file/Book1.xlsx", sheet_name=None)
+    #
+    #     # print("Column headings:")
+    #     # print(DataF.columns)
+    #     # print(df)\
+    #     i = 0
+    #     o = 0
+    #     for d in df:
+    #         sheet = pd.read_excel(file, sheet_name=d, header=[0])
+    #         # sheet = pd.read_excel("file/PMO Pier 1 Jan-Dec 2017.xlsx", sheet_name=d, header=[0])
+    #         # sheet = pd.read_excel("file/Book1.xlsx", sheet_name=d, header=[0])
+    #
+    #         h = []
+    #         for k in sheet.to_dict('dict'):
+    #             h.append(k)
+    #
+    #         berth_dt_key = []
+    #         if 'BERTH ARR DATE & TIME' in h:
+    #             for k in sheet.to_dict('dict')['BERTH ARR DATE & TIME']:
+    #                 try:
+    #                     berth_dt = sheet.to_dict('dict')['BERTH ARR DATE & TIME'][k].strftime("%m/%d/%Y")
+    #                 except:
+    #                     # print(k)
+    #                     # print(sheet.to_dict('dict')['BERTH ARR DATE & TIME'][k])
+    #                     # print("Please check your excel file empty column found")
+    #                     # exit()
+    #                     pass
+    #
+    #                 if berth_dt == date_:
+    #                     berth_dt_key.append(k)
+    #
+    #         for b in berth_dt_key:
+    #             in_ = sheet.to_dict('dict')['PASSENGER IN'][b]
+    #             out_ = sheet.to_dict('dict')['PASSENGER OUT'][b]
+    #
+    #             i += float(in_)
+    #             o += float(out_)
+    #
+    #     self.terminate()
+    #     print('')
+    #     print('==================================')
+    #     print(f'Date : {date_}')
+    #     print(f'Total PASSENGER IN : {i}')
+    #     print(f'Total PASSENGER OUT : {o}')
+    #     print('==================================')
+    #     print('')
 
     def file2(self,search):
         import pandas as pd
+        file = self.file_
         # df = pd.read_excel("file/PMO Pier 1 Jan-Dec 2017.xlsx", None)
         # df = pd.read_excel("file/Book1.xlsx",sheet_name='Sheet1')
         # df = pd.read_excel("file/Book1.xlsx",None)
-        df = pd.read_excel("file/PMO Pier 1 Jan-Dec 2017.xlsx",None)
+        # df = pd.read_excel("file/PMO Pier 1 Jan-Dec 2017.xlsx",None)
+        df = pd.read_excel(file,None)
 
         i = 0
         o = 0
@@ -131,17 +170,38 @@ class Main:
             # print(d)
             # print('')
             # record = pd.read_excel("file/Book1.xlsx",sheet_name=d)
-            record = pd.read_excel("file/PMO Pier 1 Jan-Dec 2017.xlsx",sheet_name=d)
+            record = pd.read_excel(file,sheet_name=d)
             # print(record.to_dict('dict'))
             header = record.to_dict('dict').keys()
 
             dataframe = pd.DataFrame(record, columns=header)
-            date_ = dataframe.loc[dataframe['BERTH ARR DATE & TIME'].dt.strftime('%m/%d/%Y') == search]
+            date_ = dataframe.loc[dataframe['BERTH ARR DATE & TIME'].dt.strftime('%m/%d/%Y %H') == search]
             # print(date_['PASSENGER IN'])
             # print(sum(date_['PASSENGER OUT']))
+            # print(dataframe['BERTH ARR DATE & TIME'].dt.strftime('%m/%d/%Y %H'))
 
-            i += float(sum(date_['PASSENGER IN']))
-            o += float(sum(date_['PASSENGER OUT']))
+            i += float(sum(date_['PASSENGER IN'].dropna()))
+            o += float(sum(date_['PASSENGER OUT'].dropna()))
+
+            # print(d,search, i)
+
+        # record = pd.read_excel("file/PMO3 Pier 3 Jan-Dec 2017.xlsx", sheet_name='PMOPier3 Jan2017')
+        # header = record.to_dict('dict').keys()
+        #
+        # dataframe = pd.DataFrame(record, columns=header)
+        # date_ = dataframe.loc[dataframe['BERTH ARR DATE & TIME'].dt.strftime('%m/%d/%Y %H') == search]
+
+        # print(date_['PASSENGER IN'])
+        # print(date_['PASSENGER IN'].astype(float))
+        # print(type(date_['PASSENGER IN'].astype(str)))
+
+        # print(date_['PASSENGER IN'].isnull)
+
+        # if date_['PASSENGER IN'].notnull:
+        #     i += float(sum(date_['PASSENGER IN']))
+        #
+        # if date_['PASSENGER OUT'].notnull:
+        #     o += float(sum(date_['PASSENGER OUT']))
 
         self.terminate()
         print('')
@@ -177,5 +237,6 @@ class Main:
 
 
 if __name__ == '__main__':
-    Main()
-    # file()
+    app = QApplication(sys.argv)
+    main = Main(app)
+    sys.exit(app.exec_())
