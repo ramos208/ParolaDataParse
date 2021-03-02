@@ -1,0 +1,181 @@
+import itertools
+import re
+import sys
+import threading
+import time
+from queue import Queue
+
+from pip._vendor.distlib.compat import raw_input
+import xlrd
+
+class Main:
+    def __init__(self):
+        self._running = False
+        self.data()
+
+    def data(self):
+        month = raw_input("Enter Month (1-12):")
+        m = re.match('[0-9]+', month)
+        if m:
+            if int(month) > 12:
+                print('enter 1-12 for month')
+                return self.data()
+            else:
+                if int(month) in [1,2,3,4,5,6,7,8,9]:
+                    self.day(f'0{int(month)}')
+                else:
+                    self.day(month)
+        else:
+            print('enter 1-12 for month')
+            return self.data()
+
+    def day(self,month):
+        days = raw_input("Enter Day (1-31):")
+        d = re.match('[0-9]+', days)
+        if d:
+            if int(days) > 31:
+                print('enter 1-31 for day')
+                return self.day(month)
+            else:
+                if int(days) in [1,2,3,4,5,6,7,8,9]:
+                    self.year(month,f'0{int(days)}')
+                else:
+                    self.year(month, days)
+        else:
+            print('enter 1-31 for day')
+            return self.day(month)
+
+
+    def year(self,m,day):
+        years = raw_input("Enter Year :")
+        y = re.match('[0-9]+', years)
+        if y:
+
+            t = threading.Thread(target=self.loading)
+            t.start()
+
+            d = f'{m}/{day}/{years}'
+            que = Queue()
+            t1 = threading.Thread(target=lambda q, arg1: q.put(self.file2(arg1)), args=(que, d))
+            t1.start()
+
+        else:
+            print('enter a valid year')
+            return self.year(self,m,day)
+
+    def file(self,date_):
+        import pandas as pd
+        from pandas import ExcelWriter
+        from pandas import ExcelFile
+
+        df = pd.read_excel("file/PMO Pier 1 Jan-Dec 2017.xlsx", sheet_name=None)
+        # df = pd.read_excel("file/Book1.xlsx", sheet_name=None)
+
+        # print("Column headings:")
+        # print(DataF.columns)
+        # print(df)\
+        i = 0
+        o = 0
+        for d in df:
+            print(d)
+            sheet = pd.read_excel("file/PMO Pier 1 Jan-Dec 2017.xlsx", sheet_name=d, header=[0])
+            # sheet = pd.read_excel("file/Book1.xlsx", sheet_name=d, header=[0])
+
+            h = []
+            for k in sheet.to_dict('dict'):
+                h.append(k)
+
+            berth_dt_key = []
+            if 'BERTH ARR DATE & TIME' in h:
+                for k in sheet.to_dict('dict')['BERTH ARR DATE & TIME']:
+                    try:
+                        berth_dt = sheet.to_dict('dict')['BERTH ARR DATE & TIME'][k].strftime("%m/%d/%Y")
+                    except:
+                        # print(k)
+                        # print(sheet.to_dict('dict')['BERTH ARR DATE & TIME'][k])
+                        # print("Please check your excel file empty column found")
+                        # exit()
+                        pass
+
+                    if berth_dt == date_:
+                        berth_dt_key.append(k)
+
+            for b in berth_dt_key:
+                in_ = sheet.to_dict('dict')['PASSENGER IN'][b]
+                out_ = sheet.to_dict('dict')['PASSENGER OUT'][b]
+
+                i += float(in_)
+                o += float(out_)
+
+        self.terminate()
+        print('')
+        print('==================================')
+        print(f'Date : {date_}')
+        print(f'Total PASSENGER IN : {i}')
+        print(f'Total PASSENGER OUT : {o}')
+        print('==================================')
+        print('')
+
+
+    def file2(self,search):
+        import pandas as pd
+        # df = pd.read_excel("file/PMO Pier 1 Jan-Dec 2017.xlsx", None)
+        # df = pd.read_excel("file/Book1.xlsx",sheet_name='Sheet1')
+        # df = pd.read_excel("file/Book1.xlsx",None)
+        df = pd.read_excel("file/PMO Pier 1 Jan-Dec 2017.xlsx",None)
+
+        i = 0
+        o = 0
+        for d in df.keys():
+            # print('')
+            # print(d)
+            # print('')
+            # record = pd.read_excel("file/Book1.xlsx",sheet_name=d)
+            record = pd.read_excel("file/PMO Pier 1 Jan-Dec 2017.xlsx",sheet_name=d)
+            # print(record.to_dict('dict'))
+            header = record.to_dict('dict').keys()
+
+            dataframe = pd.DataFrame(record, columns=header)
+            date_ = dataframe.loc[dataframe['BERTH ARR DATE & TIME'].dt.strftime('%m/%d/%Y') == search]
+            # print(date_['PASSENGER IN'])
+            # print(sum(date_['PASSENGER OUT']))
+
+            i += float(sum(date_['PASSENGER IN']))
+            o += float(sum(date_['PASSENGER OUT']))
+
+        self.terminate()
+        print('')
+        print('==================================')
+        print(f'Date : {search}')
+        print(f'Total PASSENGER IN : {i}')
+        print(f'Total PASSENGER OUT : {o}')
+        print('==================================')
+        print('')
+
+
+    def msg_(self):
+        msg = raw_input('Do you want to search again (Y/N)?:')
+        if msg.upper() not in ['Y', 'N', 'YES', 'NO']:
+            return self.msg_()
+        elif msg.upper() in ['Y', 'YES']:
+            return self.data()
+        else:
+            exit()
+
+    def terminate(self):
+        self._running = True
+
+    def loading(self):
+        for c in itertools.cycle(['|', '/', '-', '\\']):
+            if self._running:
+                break
+            sys.stdout.write('\rSearching ' + c)
+            sys.stdout.flush()
+            time.sleep(0.1)
+        self._running = False
+        self.msg_()
+
+
+if __name__ == '__main__':
+    Main()
+    # file()
