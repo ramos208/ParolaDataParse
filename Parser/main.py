@@ -15,7 +15,7 @@ class Main(QMainWindow):
         super(Main, self).__init__()
         self._running = False
         self.file_ = None
-        self.get_file()
+        self.get_file(1)
 
         if self.file_:
             self.data()
@@ -23,13 +23,17 @@ class Main(QMainWindow):
         else:
             quit()
 
-    def get_file(self):
+    def get_file(self,path):
         file_name, _ = QFileDialog.getOpenFileName(self, caption="Data Parse", filter="Excel(*.xlsx)")
         if file_name != '':
             self.file_ = file_name
+            self.path = True
             return file_name
         else:
-            return False
+            if path == 1:
+                return False
+            else:
+                self.msg_file()
 
 
     def data(self):
@@ -166,22 +170,22 @@ class Main(QMainWindow):
         i = 0
         o = 0
         for d in df.keys():
-            # print('')
-            # print(d)
-            # print('')
-            # record = pd.read_excel("file/Book1.xlsx",sheet_name=d)
+            print()
+            print('Sheet Name : ',d)
+            print('Passenger in : ', i)
+            print('Passenger out : ', o)
+            print()
             record = pd.read_excel(file,sheet_name=d)
-            # print(record.to_dict('dict'))
             header = record.to_dict('dict').keys()
-
-            dataframe = pd.DataFrame(record, columns=header)
-            date_ = dataframe.loc[dataframe['BERTH ARR DATE & TIME'].dt.strftime('%m/%d/%Y %H') == search]
-            # print(date_['PASSENGER IN'])
-            # print(sum(date_['PASSENGER OUT']))
-            # print(dataframe['BERTH ARR DATE & TIME'].dt.strftime('%m/%d/%Y %H'))
-
-            i += float(sum(date_['PASSENGER IN'].dropna()))
-            o += float(sum(date_['PASSENGER OUT'].dropna()))
+            if 'BERTH ARR DATE & TIME' in header:
+                dataframe = pd.DataFrame(record, columns=header)
+                try:
+                    date_ = dataframe.loc[dataframe['BERTH ARR DATE & TIME'].dt.strftime('%m/%d/%Y %H') == search]
+                except:
+                    print(f'Please check BERTH ARR DATE & TIME column date format in {d} sheet')
+                    exit()
+                i += float(sum(date_['PASSENGER IN'].dropna()))
+                o += float(sum(date_['PASSENGER OUT'].dropna()))
 
             # print(d,search, i)
 
@@ -206,6 +210,7 @@ class Main(QMainWindow):
         self.terminate()
         print('')
         print('==================================')
+        print(f'File Path : {self.file_}')
         print(f'Date : {search}')
         print(f'Total PASSENGER IN : {i}')
         print(f'Total PASSENGER OUT : {o}')
@@ -218,10 +223,18 @@ class Main(QMainWindow):
         if msg.upper() not in ['Y', 'N', 'YES', 'NO']:
             return self.msg_()
         elif msg.upper() in ['Y', 'YES']:
-            return self.data()
+            self.msg_file()
         else:
             exit()
 
+    def msg_file(self):
+        msg = raw_input('New file (Y/N)?:')
+        if msg.upper() not in ['Y', 'N', 'YES', 'NO']:
+            return self.msg_file()
+        elif msg.upper() in ['Y', 'YES']:
+            return self.get_file(2)
+        else:
+            self.data()
     def terminate(self):
         self._running = True
 
